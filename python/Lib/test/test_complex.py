@@ -1,4 +1,4 @@
-from test_support import TestFailed
+from test.test_support import TestFailed, vereq
 from random import random
 
 # These tests ensure that complex math does the right thing; tests of
@@ -55,6 +55,29 @@ test_div(complex(1e-200, 1e-200), 1+0j)
 for i in range(100):
     test_div(complex(random(), random()),
              complex(random(), random()))
+
+for i in range(100):
+    if not complex(random() + 1e-6, random() + 1e-6):
+        raise TestFailed("complex(random(), random()) should be true")
+
+if complex(0.0, 0.0):
+    raise TestFailed("complex(0.0, 0.0) should be false")
+
+vereq(complex(5.3, 9.8).conjugate(), 5.3-9.8j)
+
+try:
+    print int(5+3j)
+except TypeError:
+    pass
+else:
+    raise TestFailed("int(complex()) didn't raise TypeError")
+
+try:
+    print float(5+3j)
+except TypeError:
+    pass
+else:
+    raise TestFailed("float(complex()) didn't raise TypeError")
 
 try:
     z = 1.0 / (0+0j)

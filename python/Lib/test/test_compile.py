@@ -1,4 +1,4 @@
-from test_support import verbose, TestFailed
+from test.test_support import verbose, TestFailed
 
 if verbose:
     print "Testing whether compiler catches assignment to __debug__"
@@ -21,6 +21,15 @@ try:
     raise TestFailed, "duplicate arguments"
 except SyntaxError:
     pass
+
+if verbose:
+    print "compiling string with syntax error"
+
+try:
+    compile("1+*3", "filename", "exec")
+except SyntaxError, detail:
+    if not detail.filename == "filename":
+        raise TestFailed, "expected 'filename', got %r" % detail.filename
 
 try:
     exec 'def f(a = 0, a = 1): pass'
@@ -80,6 +89,15 @@ expect_error("2.0e+")
 expect_error("1e-")
 expect_error("3-4e/21")
 
+if verbose:
+    print "testing compile() of indented block w/o trailing newline"
+
+s = """
+if 1:
+    if 2:
+        pass"""
+compile(s, "<string>", "exec")
+
 
 if verbose:
     print "testing literals with leading zeroes"
@@ -123,3 +141,18 @@ expect_error("000000000000008")  # plain octal literal w/ decimal digit
 expect_same("000000000000007", 7)
 expect_same("000000000000008.", 8.)
 expect_same("000000000000009.", 9.)
+
+# Verify treatment of unary minus on negative numbers SF bug #660455
+import warnings
+warnings.filterwarnings("ignore", "hex/oct constants", FutureWarning)
+warnings.filterwarnings("ignore", "hex.* of negative int", FutureWarning)
+# XXX Of course the following test will have to be changed in Python 2.4
+# This test is in a <string> so the filterwarnings() can affect it
+import sys
+all_one_bits = '0xffffffff'
+if sys.maxint != 2147483647:
+    all_one_bits = '0xffffffffffffffff'
+exec """
+expect_same(all_one_bits, -1)
+expect_same("-" + all_one_bits, 1)
+"""

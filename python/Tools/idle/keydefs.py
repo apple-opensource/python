@@ -17,12 +17,13 @@ windows_keydefs = \
  '<<open-new-window>>': ['<Control-n>'],
  '<<open-window-from-file>>': ['<Control-o>'],
  '<<plain-newline-and-indent>>': ['<Control-j>'],
+ '<<print-window>>': ['<Control-p>'],
  '<<redo>>': ['<Control-y>'],
  '<<remove-selection>>': ['<Escape>'],
  '<<save-copy-of-window-as-file>>': ['<Alt-Shift-s>'],
  '<<save-window-as-file>>': ['<Alt-s>'],
  '<<save-window>>': ['<Control-s>'],
- '<<select-all>>': ['<Alt-a>'],
+ '<<select-all>>': ['<Control-a>'],
  '<<toggle-auto-coloring>>': ['<Control-slash>'],
  '<<undo>>': ['<Control-z>']}
 
@@ -46,6 +47,7 @@ unix_keydefs = \
  '<<open-new-window>>': ['<Control-x><Control-n>'],
  '<<open-window-from-file>>': ['<Control-x><Control-f>'],
  '<<plain-newline-and-indent>>': ['<Control-j>'],
+ '<<print-window>>': ['<Control-x><Control-p>'],
  '<<redo>>': ['<Alt-z>', '<Meta-z>'],
  '<<save-copy-of-window-as-file>>': ['<Control-x><w>'],
  '<<save-window-as-file>>': ['<Control-x><Control-w>'],

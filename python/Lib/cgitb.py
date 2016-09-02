@@ -17,7 +17,7 @@ for you, call cgitb.handler().  The optional argument to handler() is a 3-item
 tuple (etype, evalue, etb) just like the value of sys.exc_info()."""
 
 __author__ = 'Ka-Ping Yee'
-__version__ = '$Revision: 1.1.1.1 $'
+__version__ = '$Revision: 1.7 $'
 
 import sys
 
@@ -42,6 +42,14 @@ def lookup(name, frame, locals):
         return 'local', locals[name]
     if name in frame.f_globals:
         return 'global', frame.f_globals[name]
+    if '__builtins__' in frame.f_globals:
+        builtins = frame.f_globals['__builtins__']
+        if type(builtins) is type({}):
+            if name in builtins:
+                return 'builtin', builtins[name]
+        else:
+            if hasattr(builtins, name):
+                return 'builtin', getattr(builtins, name)
     return None, __UNDEF__
 
 def scanvars(reader, frame, locals):
@@ -118,9 +126,12 @@ function calls leading up to the error, in the order they occurred.'''
             if name in done: continue
             done[name] = 1
             if value is not __UNDEF__:
-                if where == 'global': name = '<em>global</em> ' + strong(name)
-                elif where == 'local': name = strong(name)
-                else: name = where + strong(name.split('.')[-1])
+                if where in ['global', 'builtin']:
+                    name = ('<em>%s</em> ' % where) + strong(name)
+                elif where == 'local':
+                    name = strong(name)
+                else:
+                    name = where + strong(name.split('.')[-1])
                 dump.append('%s&nbsp;= %s' % (name, pydoc.html.repr(value)))
             else:
                 dump.append(name + ' <em>undefined</em>')
@@ -133,6 +144,7 @@ function calls leading up to the error, in the order they occurred.'''
     exception = ['<p>%s: %s' % (strong(str(etype)), str(evalue))]
     if type(evalue) is types.InstanceType:
         for name in dir(evalue):
+            if name[:1] == '_': continue
             value = pydoc.html.repr(getattr(evalue, name))
             exception.append('\n<br>%s%s&nbsp;=\n%s' % (indent, name, value))
 
@@ -181,10 +193,10 @@ class Hook:
 
         if self.logdir is not None:
             import os, tempfile
-            name = tempfile.mktemp(['.html', '.txt'][text])
-            path = os.path.join(self.logdir, os.path.basename(name))
+            (fd, path) = tempfile.mkstemp(suffix=['.html', '.txt'][text],
+                                          dir=self.logdir)
             try:
-                file = open(path, 'w')
+                file = os.fdopen(fd, 'w')
                 file.write(doc)
                 file.close()
                 msg = '<p> %s contains the description of this error.' % path

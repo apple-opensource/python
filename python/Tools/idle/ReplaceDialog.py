@@ -1,9 +1,4 @@
-import string
-import os
-import re
-import fnmatch
 from Tkinter import *
-import tkMessageBox
 import SearchEngine
 from SearchDialogBase import SearchDialogBase
 
@@ -90,7 +85,7 @@ class ReplaceDialog(SearchDialogBase):
             line, m = res
             chars = text.get("%d.0" % line, "%d.0" % (line+1))
             orig = m.group()
-            new = self._expand(m, repl)
+            new = m.expand(repl)
             i, j = m.span()
             first = "%d.%d" % (line, i)
             last = "%d.%d" % (line, j)
@@ -111,24 +106,24 @@ class ReplaceDialog(SearchDialogBase):
 
     def do_find(self, ok=0):
         if not self.engine.getprog():
-            return 0
+            return False
         text = self.text
         res = self.engine.search_text(text, None, ok)
         if not res:
             text.bell()
-            return 0
+            return False
         line, m = res
         i, j = m.span()
         first = "%d.%d" % (line, i)
         last = "%d.%d" % (line, j)
         self.show_hit(first, last)
         self.ok = 1
-        return 1
+        return True
 
     def do_replace(self):
         prog = self.engine.getprog()
         if not prog:
-            return 0
+            return False
         text = self.text
         try:
             first = pos = text.index("sel.first")
@@ -141,8 +136,8 @@ class ReplaceDialog(SearchDialogBase):
         chars = text.get("%d.0" % line, "%d.0" % (line+1))
         m = prog.match(chars, col)
         if not prog:
-            return 0
-        new = self._expand(m, self.replvar.get())
+            return False
+        new = m.expand(self.replvar.get())
         text.mark_set("insert", first)
         text.undo_block_start()
         if m.group():
@@ -152,23 +147,7 @@ class ReplaceDialog(SearchDialogBase):
         text.undo_block_stop()
         self.show_hit(first, text.index("insert"))
         self.ok = 0
-        return 1
-
-    def _expand(self, m, template):
-        # XXX This code depends on internals of the regular expression
-        # engine!  There's no standard API to do a substitution when you
-        # have already found the match.  One should be added.
-        # The solution here is designed to be backwards compatible
-        # with previous Python versions, e.g. 1.5.2.
-        # XXX This dynamic test should be done only once.
-        if getattr(re, "engine", "pre") == "pre":
-            return re.pcre_expand(m, template)
-        else: # sre
-            # XXX This import should be avoidable...
-            import sre_parse
-            # XXX This parses the template over and over...
-            ptemplate = sre_parse.parse_template(template, m.re)
-            return sre_parse.expand_template(ptemplate, m)
+        return True
 
     def show_hit(self, first, last):
         text = self.text

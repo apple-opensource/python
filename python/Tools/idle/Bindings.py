@@ -6,7 +6,6 @@
 # Debug menu here, which is only present in the PythonShell window.
 
 import sys
-import string
 from keydefs import *
 
 menudefs = [
@@ -22,6 +21,8 @@ menudefs = [
    ('_Save', '<<save-window>>'),
    ('Save _As...', '<<save-window-as-file>>'),
    ('Save Co_py As...', '<<save-copy-of-window-as-file>>'),
+   None,
+   ('_Print window', '<<print-window>>'),
    None,
    ('_Close', '<<close-window>>'),
    ('E_xit', '<<close-all-windows>>'),

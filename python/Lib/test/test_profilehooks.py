@@ -1,10 +1,8 @@
-from __future__ import generators
-
 import pprint
 import sys
 import unittest
 
-import test_support
+from test import test_support
 
 
 class HookWatcher:
@@ -329,6 +327,14 @@ protect_ident = ident(protect)
 
 
 def capture_events(callable, p=None):
+    try:
+        sys.setprofile()
+    except TypeError:
+        pass
+    else:
+        raise test_support.TestFailed(
+            'sys.setprofile() did not raise TypeError')
+
     if p is None:
         p = HookWatcher()
     sys.setprofile(p.callback)

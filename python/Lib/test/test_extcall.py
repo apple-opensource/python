@@ -1,4 +1,4 @@
-from test_support import verify, verbose, TestFailed, sortdict
+from test.test_support import verify, verbose, TestFailed, sortdict
 from UserList import UserList
 
 def f(*a, **k):
@@ -239,5 +239,5 @@ for name in ['za', 'zade', 'zabk', 'zabdv', 'zabdevk']:
             kwdict = {}
             for k in kwargs: kwdict[k] = k + k
             print func.func_name, args, sortdict(kwdict), '->',
-            try: apply(func, args, kwdict)
+            try: func(*args, **kwdict)
             except TypeError, err: print err

@@ -1,0 +1,14 @@
+/^BUILDEXE/c
+BUILDEXE = .exe
+.
+/^OTHER_LIBTOOL_OPT/c
+OTHER_LIBTOOL_OPT =
+.
+/^RUNSHARED/c
+RUNSHARED = DYLD_FRAMEWORK_PATH=$(OBJROOT)
+.
+/setup\.py -q/s//setup.py/
+s/$(CC)/& $(RC_CFLAGS)/
+/-install_name /s,,&/System/Library/Frameworks/,
+g,BUILDPYTHON=./$(BUILDPYTHON),.-1s,$(MAKE),$(RUNSHARED) &,
+w

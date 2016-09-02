@@ -20,7 +20,7 @@ struct _symtable_entry;
 
 struct symtable {
 	int st_pass;             /* pass == 1 or 2 */
-	char *st_filename;       /* name of file being compiled */
+	const char *st_filename; /* name of file being compiled */
 	struct _symtable_entry *st_cur; /* current symbol table entry */
 	PyObject *st_symbols;    /* dictionary of symbol table entries */
         PyObject *st_stack;      /* stack of namespace info */
@@ -50,15 +50,15 @@ typedef struct _symtable_entry {
 	struct symtable *ste_table;
 } PySymtableEntryObject;
 
-extern DL_IMPORT(PyTypeObject) PySymtableEntry_Type;
+PyAPI_DATA(PyTypeObject) PySymtableEntry_Type;
 
 #define PySymtableEntry_Check(op) ((op)->ob_type == &PySymtableEntry_Type)
 
-extern DL_IMPORT(PyObject *) PySymtableEntry_New(struct symtable *,
+PyAPI_FUNC(PyObject *) PySymtableEntry_New(struct symtable *,
 						 char *, int, int);
 
-DL_IMPORT(struct symtable *) PyNode_CompileSymtable(struct _node *, char *);
-DL_IMPORT(void) PySymtable_Free(struct symtable *);
+PyAPI_FUNC(struct symtable *) PyNode_CompileSymtable(struct _node *, const char *);
+PyAPI_FUNC(void) PySymtable_Free(struct symtable *);
 
 
 #define TOP "global"

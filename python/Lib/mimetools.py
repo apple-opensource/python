@@ -112,15 +112,14 @@ def choose_boundary():
     import random
     if _prefix is None:
         import socket
-        import os
         hostid = socket.gethostbyname(socket.gethostname())
         try:
             uid = `os.getuid()`
-        except:
+        except AttributeError:
             uid = '1'
         try:
             pid = `os.getpid()`
-        except:
+        except AttributeError:
             pid = '1'
         _prefix = hostid + '.' + uid + '.' + pid
     timestamp = '%.3f' % time.time()
@@ -143,7 +142,7 @@ def decode(input, output, encoding):
         return uu.decode(input, output)
     if encoding in ('7bit', '8bit'):
         return output.write(input.read())
-    if decodetab.has_key(encoding):
+    if encoding in decodetab:
         pipethrough(input, decodetab[encoding], output)
     else:
         raise ValueError, \
@@ -162,7 +161,7 @@ def encode(input, output, encoding):
         return uu.encode(input, output)
     if encoding in ('7bit', '8bit'):
         return output.write(input.read())
-    if encodetab.has_key(encoding):
+    if encoding in encodetab:
         pipethrough(input, encodetab[encoding], output)
     else:
         raise ValueError, \
@@ -203,8 +202,8 @@ def pipeto(input, command):
     pipe.close()
 
 def pipethrough(input, command, output):
-    tempname = tempfile.mktemp()
-    temp = open(tempname, 'w')
+    (fd, tempname) = tempfile.mkstemp()
+    temp = os.fdopen(fd, 'w')
     copyliteral(input, temp)
     temp.close()
     pipe = os.popen(command + ' <' + tempname, 'r')

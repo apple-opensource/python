@@ -1,6 +1,6 @@
 \chapter{Defining New Types
         \label{defining-new-types}}
-\sectionauthor{Michael Hudson}{mwh21@cam.ac.uk}
+\sectionauthor{Michael Hudson}{mwh@python.net}
 \sectionauthor{Dave Kuhlman}{dkuhlman@rexx.com}
 
 As mentioned in the last chapter, Python allows the writer of an
@@ -20,9 +20,9 @@ object - it just contains the refcount and a pointer to the object's
 ``type object''.  This is where the action is; the type object
 determines which (C) functions get called when, for instance, an
 attribute gets looked up on an object or it is multiplied by another
-object.  I call these C functions ``type methods'' to distinguish them
-from things like \code{[].append} (which I will call ``object
-methods'' when I get around to them).
+object.  These C functions are called ``type methods'' to distinguish
+them from things like \code{[].append} (which we call ``object
+methods'').
 
 So, if you want to define a new object type, you need to create a new
 type object.
@@ -30,66 +30,7 @@ type object.
 This sort of thing can only be explained by example, so here's a
 minimal, but complete, module that defines a new type:
 
-\begin{verbatim}
-#include <Python.h>
-
-staticforward PyTypeObject noddy_NoddyType;
-
-typedef struct {
-    PyObject_HEAD
-} noddy_NoddyObject;
-
-static PyObject*
-noddy_new_noddy(PyObject* self, PyObject* args)
-{
-    noddy_NoddyObject* noddy;
-
-    if (!PyArg_ParseTuple(args,":new_noddy")) 
-        return NULL;
-
-    noddy = PyObject_New(noddy_NoddyObject, &noddy_NoddyType);
-
-    return (PyObject*)noddy;
-}
-
-static void
-noddy_noddy_dealloc(PyObject* self)
-{
-    PyObject_Del(self);
-}
-
-static PyTypeObject noddy_NoddyType = {
-    PyObject_HEAD_INIT(NULL)
-    0,
-    "Noddy",
-    sizeof(noddy_NoddyObject),
-    0,
-    noddy_noddy_dealloc, /*tp_dealloc*/
-    0,          /*tp_print*/
-    0,          /*tp_getattr*/
-    0,          /*tp_setattr*/
-    0,          /*tp_compare*/
-    0,          /*tp_repr*/
-    0,          /*tp_as_number*/
-    0,          /*tp_as_sequence*/
-    0,          /*tp_as_mapping*/
-    0,          /*tp_hash */
-};
-
-static PyMethodDef noddy_methods[] = {
-    {"new_noddy", noddy_new_noddy, METH_VARARGS,
-     "Create a new Noddy object."},
-    {NULL, NULL, 0, NULL}
-};
-
-DL_EXPORT(void)
-initnoddy(void) 
-{
-    noddy_NoddyType.ob_type = &PyType_Type;
-
-    Py_InitModule("noddy", noddy_methods);
-}
-\end{verbatim}
+\verbatiminput{noddy.c}
 
 Now that's quite a bit to take in at once, but hopefully bits will
 seem familiar from the last chapter.
@@ -97,16 +38,13 @@ seem familiar from the last chapter.
 The first bit that will be new is:
 
 \begin{verbatim}
-staticforward PyTypeObject noddy_NoddyType;
+static PyTypeObject noddy_NoddyType;
 \end{verbatim}
 
 This names the type object that will be defining further down in the
 file.  It can't be defined here because its definition has to refer to
-functions that have no yet been defined, but we need to be able to
+functions that have not yet been defined, but we need to be able to
 refer to it, hence the declaration.
-
-The \code{staticforward} is required to placate various brain dead
-compilers.
 
 \begin{verbatim}
 typedef struct {
@@ -114,13 +52,19 @@ typedef struct {
 } noddy_NoddyObject;
 \end{verbatim}
 
-This is what a Noddy object will contain.  In this case nothing more
-than every Python object contains - a refcount and a pointer to a type
+This is what a Noddy object will contain---in this case, nothing more
+than every Python object contains, namely a refcount and a pointer to a type
 object.  These are the fields the \code{PyObject_HEAD} macro brings
 in.  The reason for the macro is to standardize the layout and to
-enable special debugging fields to be brought in debug builds.
+enable special debugging fields in debug builds.  Note that there is
+no semicolon after the \code{PyObject_HEAD} macro; one is included in
+the macro definition.  Be wary of adding one by accident; it's easy to
+do from habit, and your compiler might not complain, but someone
+else's probably will!  (On Windows, MSVC is known to call this an
+error and refuse to compile the code.)
 
-For contrast
+For contrast, let's take a look at the corresponding definition for
+standard Python integers:
 
 \begin{verbatim}
 typedef struct {
@@ -128,8 +72,6 @@ typedef struct {
     long ob_ival;
 } PyIntObject;
 \end{verbatim}
-
-is the corresponding definition for standard Python integers.
 
 Next up is:
 
@@ -150,9 +92,10 @@ noddy_new_noddy(PyObject* self, PyObject* args)
 
 This is in fact just a regular module function, as described in the
 last chapter.  The reason it gets special mention is that this is
-where we create our Noddy object.  Defining PyTypeObject structures is
-all very well, but if there's no way to actually \emph{create} one
-of the wretched things it is not going to do anyone much good.
+where we create our Noddy object.  Defining \ctype{PyTypeObject}
+structures is all very well, but if there's no way to actually
+\emph{create} one of the wretched things it is not going to do anyone
+much good.
 
 Almost always, you create objects with a call of the form:
 
@@ -161,10 +104,22 @@ PyObject_New(<type>, &<type object>);
 \end{verbatim}
 
 This allocates the memory and then initializes the object (sets
-the reference count to one, makes the \cdata{ob_type} pointer point at
+the reference count to one, makes the \member{ob_type} pointer point at
 the right place and maybe some other stuff, depending on build options).
 You \emph{can} do these steps separately if you have some reason to
 --- but at this level we don't bother.
+
+Note that \cfunction{PyObject_New()} is a polymorphic macro rather
+than a real function.  The first parameter is the name of the C
+structure that represents an object of our new type, and the return
+value is a pointer to that type.  This would be
+\ctype{noddy_NoddyObject} in our example:
+
+\begin{verbatim}
+    noddy_NoddyObject *my_noddy;
+
+    my_noddy = PyObject_New(noddy_NoddyObject, &noddy_NoddyType);
+\end{verbatim}
 
 We cast the return value to a \ctype{PyObject*} because that's what
 the Python runtime expects.  This is safe because of guarantees about
@@ -198,20 +153,20 @@ Moving on, we come to the crunch --- the type object.
 \begin{verbatim}
 static PyTypeObject noddy_NoddyType = {
     PyObject_HEAD_INIT(NULL)
-    0,
-    "Noddy",
-    sizeof(noddy_NoddyObject),
-    0,
-    noddy_noddy_dealloc, /*tp_dealloc*/
-    0,                   /*tp_print*/
-    0,                   /*tp_getattr*/
-    0,                   /*tp_setattr*/
-    0,                   /*tp_compare*/
-    0,                   /*tp_repr*/
-    0,                   /*tp_as_number*/
-    0,                   /*tp_as_sequence*/
-    0,                   /*tp_as_mapping*/
-    0,                   /*tp_hash */
+    0,                          /* ob_size */
+    "Noddy",                    /* tp_name */
+    sizeof(noddy_NoddyObject),  /* tp_basicsize */
+    0,                          /* tp_itemsize */
+    noddy_noddy_dealloc,        /* tp_dealloc */
+    0,                          /* tp_print */
+    0,                          /* tp_getattr */
+    0,                          /* tp_setattr */
+    0,                          /* tp_compare */
+    0,                          /* tp_repr */
+    0,                          /* tp_as_number */
+    0,                          /* tp_as_sequence */
+    0,                          /* tp_as_mapping */
+    0,                          /* tp_hash */
 };
 \end{verbatim}
 
@@ -221,7 +176,7 @@ definition above.  The remaining fields will be filled with zeros by
 the C compiler, and it's common practice to not specify them
 explicitly unless you need them.  
 
-This is so important that I'm going to pick the top of it apart still
+This is so important that we're going to pick the top of it apart still
 further:
 
 \begin{verbatim}
@@ -236,17 +191,20 @@ This line is a bit of a wart; what we'd like to write is:
 
 as the type of a type object is ``type'', but this isn't strictly
 conforming C and some compilers complain.  So instead we fill in the
-\cdata{ob_type} field of \cdata{noddy_NoddyType} at the earliest
+\member{ob_type} field of \cdata{noddy_NoddyType} at the earliest
 oppourtunity --- in \cfunction{initnoddy()}.
 
 \begin{verbatim}
-    0,
+    0,                          /* ob_size */
 \end{verbatim}
 
-XXX why does the type info struct start PyObject_*VAR*_HEAD??
+The \member{ob_size} field of the header is not used; its presence in
+the type structure is a historical artifact that is maintained for
+binary compatibility with extension modules compiled for older
+versions of Python.  Always set this field to zero.
 
 \begin{verbatim}
-    "Noddy",
+    "Noddy",                    /* tp_name */
 \end{verbatim}
 
 The name of our type.  This will appear in the default textual
@@ -260,18 +218,18 @@ TypeError: cannot add type "Noddy" to string
 \end{verbatim}
 
 \begin{verbatim}
-    sizeof(noddy_NoddyObject),
+    sizeof(noddy_NoddyObject),  /* tp_basicsize */
 \end{verbatim}
 
 This is so that Python knows how much memory to allocate when you call
 \cfunction{PyObject_New}.
 
 \begin{verbatim}
-    0,
+    0,                          /* tp_itemsize */
 \end{verbatim}
 
 This has to do with variable length objects like lists and strings.
-Ignore for now...
+Ignore this for now.
 
 Now we get into the type methods, the things that make your objects
 different from the others.  Of course, the Noddy object doesn't
@@ -279,11 +237,11 @@ implement many of these, but as mentioned above you have to implement
 the deallocation function.
 
 \begin{verbatim}
-    noddy_noddy_dealloc, /*tp_dealloc*/
+    noddy_noddy_dealloc,        /* tp_dealloc */
 \end{verbatim}
 
-From here, all the type methods are nil so I won't go over them yet -
-that's for the next section!
+From here, all the type methods are \NULL, so we'll go over them later
+--- that's for the next section!
 
 Everything else in the file should be familiar, except for this line
 in \cfunction{initnoddy}:
@@ -302,15 +260,15 @@ file called \file{noddymodule.c} and
 
 \begin{verbatim}
 from distutils.core import setup, Extension
-setup(name = "noddy", version = "1.0",
-    ext_modules = [Extension("noddy", ["noddymodule.c"])])
+setup(name="noddy", version="1.0",
+      ext_modules=[Extension("noddy", ["noddymodule.c"])])
 \end{verbatim}
 
 in a file called \file{setup.py}; then typing
 
 \begin{verbatim}
-$ python setup.py build%$
-\end{verbatim}
+$ python setup.py build
+\end{verbatim} %$ <-- bow to font-lock  ;-(
 
 at a shell should produce a file \file{noddy.so} in a subdirectory;
 move to that directory and fire up Python --- you should be able to
@@ -328,81 +286,7 @@ you can implement and what they do.
 Here is the definition of \ctype{PyTypeObject}, with some fields only
 used in debug builds omitted:
 
-\begin{verbatim}
-typedef struct _typeobject {
-    PyObject_VAR_HEAD
-    char *tp_name; /* For printing */
-    int tp_basicsize, tp_itemsize; /* For allocation */
-
-    /* Methods to implement standard operations */
-
-    destructor tp_dealloc;
-    printfunc tp_print;
-    getattrfunc tp_getattr;
-    setattrfunc tp_setattr;
-    cmpfunc tp_compare;
-    reprfunc tp_repr;
-
-    /* Method suites for standard classes */
-
-    PyNumberMethods *tp_as_number;
-    PySequenceMethods *tp_as_sequence;
-    PyMappingMethods *tp_as_mapping;
-
-    /* More standard operations (here for binary compatibility) */
-
-    hashfunc tp_hash;
-    ternaryfunc tp_call;
-    reprfunc tp_str;
-    getattrofunc tp_getattro;
-    setattrofunc tp_setattro;
-
-    /* Functions to access object as input/output buffer */
-    PyBufferProcs *tp_as_buffer;
-
-    /* Flags to define presence of optional/expanded features */
-    long tp_flags;
-
-    char *tp_doc; /* Documentation string */
-
-    /* Assigned meaning in release 2.0 */
-    /* call function for all accessible objects */
-    traverseproc tp_traverse;
-
-    /* delete references to contained objects */
-    inquiry tp_clear;
-
-    /* Assigned meaning in release 2.1 */
-    /* rich comparisons */
-    richcmpfunc tp_richcompare;
-
-    /* weak reference enabler */
-    long tp_weaklistoffset;
-
-    /* Added in release 2.2 */
-    /* Iterators */
-    getiterfunc tp_iter;
-    iternextfunc tp_iternext;
-
-    /* Attribute descriptor and subclassing stuff */
-    struct PyMethodDef *tp_methods;
-    struct memberlist *tp_members;
-    struct getsetlist *tp_getset;
-    struct _typeobject *tp_base;
-    PyObject *tp_dict;
-    descrgetfunc tp_descr_get;
-    descrsetfunc tp_descr_set;
-    long tp_dictoffset;
-    initproc tp_init;
-    allocfunc tp_alloc;
-    newfunc tp_new;
-    destructor tp_free; /* Low-level free-memory routine */
-    PyObject *tp_bases;
-    PyObject *tp_mro; /* method resolution order */
-    PyObject *tp_defined;
-
-} PyTypeObject;
-\end{verbatim}
+\verbatiminput{typestruct.h}
 
 Now that's a \emph{lot} of methods.  Don't worry too much though - if
 you have a type you want to define, the chances are very good that you
@@ -430,9 +314,9 @@ Try to choose something that will be helpful in such a situation!
 \end{verbatim}
 
 These fields tell the runtime how much memory to allocate when new
-objects of this typed are created.  Python has some builtin support
+objects of this type are created.  Python has some builtin support
 for variable length structures (think: strings, lists) which is where
-the \cdata{tp_itemsize} field comes in.  This will be dealt with
+the \member{tp_itemsize} field comes in.  This will be dealt with
 later.
 
 \begin{verbatim}
@@ -517,7 +401,7 @@ my_dealloc(PyObject *obj)
 \end{verbatim}
 
 
-\subsection{Object Representation}
+\subsection{Object Presentation}
 
 In Python, there are three ways to generate a textual representation
 of an object: the \function{repr()}\bifuncindex{repr} function (or
@@ -547,7 +431,7 @@ static PyObject *
 newdatatype_repr(newdatatypeobject * obj)
 {
     return PyString_FromFormat("Repr-ified_newdatatype{{size:\%d}}",
-            obj->obj_UnderlyingDatatypePtr->size);
+                               obj->obj_UnderlyingDatatypePtr->size);
 }
 \end{verbatim}
 
@@ -558,9 +442,9 @@ uniquely-identifying value for the object.
 The \member{tp_str} handler is to \function{str()} what the
 \member{tp_repr} handler described above is to \function{repr()}; that
 is, it is called when Python code calls \function{str()} on an
-instance of your object.  It's implementation is very similar to the
+instance of your object.  Its implementation is very similar to the
 \member{tp_repr} function, but the resulting string is intended for
-human consumption.  It \member{tp_str} is not specified, the
+human consumption.  If \member{tp_str} is not specified, the
 \member{tp_repr} handler is used instead.
 
 Here is a simple example:
@@ -570,8 +454,7 @@ static PyObject *
 newdatatype_str(newdatatypeobject * obj)
 {
     return PyString_FromFormat("Stringified_newdatatype{{size:\%d}}",
-        obj->obj_UnderlyingDatatypePtr->size
-        );
+                               obj->obj_UnderlyingDatatypePtr->size);
 }
 \end{verbatim}
 
@@ -609,14 +492,177 @@ newdatatype_print(newdatatypeobject *obj, FILE *fp, int flags)
 \end{verbatim}
 
 
-\subsection{Attribute Management Functions}
+\subsection{Attribute Management}
+
+For every object which can support attributes, the corresponding type
+must provide the functions that control how the attributes are
+resolved.  There needs to be a function which can retrieve attributes
+(if any are defined), and another to set attributes (if setting
+attributes is allowed).  Removing an attribute is a special case, for
+which the new value passed to the handler is \NULL.
+
+Python supports two pairs of attribute handlers; a type that supports
+attributes only needs to implement the functions for one pair.  The
+difference is that one pair takes the name of the attribute as a
+\ctype{char*}, while the other accepts a \ctype{PyObject*}.  Each type
+can use whichever pair makes more sense for the implementation's
+convenience.
 
 \begin{verbatim}
-    getattrfunc tp_getattr;
-    setattrfunc tp_setattr;
+    getattrfunc  tp_getattr;        /* char * version */
+    setattrfunc  tp_setattr;
+    /* ... */
+    getattrofunc tp_getattrofunc;   /* PyObject * version */
+    setattrofunc tp_setattrofunc;
 \end{verbatim}
 
-The \member{tp_getattr} handle is called when the object requires an
+If accessing attributes of an object is always a simple operation
+(this will be explained shortly), there are generic implementations
+which can be used to provide the \ctype{PyObject*} version of the
+attribute management functions.  The actual need for type-specific
+attribute handlers almost completely disappeared starting with Python
+2.2, though there are many examples which have not been updated to use
+some of the new generic mechanism that is available.
+
+
+\subsubsection{Generic Attribute Management}
+
+\versionadded{2.2}
+
+Most extension types only use \emph{simple} attributes.  So, what
+makes the attributes simple?  There are only a couple of conditions
+that must be met:
+
+\begin{enumerate}
+  \item   The name of the attributes must be known when
+          \cfunction{PyType_Ready()} is called.
+
+  \item   No special processing is needed to record that an attribute
+          was looked up or set, nor do actions need to be taken based
+          on the value.
+\end{enumerate}
+
+Note that this list does not place any restrictions on the values of
+the attributes, when the values are computed, or how relevant data is
+stored.
+
+When \cfunction{PyType_Ready()} is called, it uses three tables
+referenced by the type object to create \emph{descriptors} which are
+placed in the dictionary of the type object.  Each descriptor controls
+access to one attribute of the instance object.  Each of the tables is
+optional; if all three are \NULL, instances of the type will only have
+attributes that are inherited from their base type, and should leave
+the \member{tp_getattro} and \member{tp_setattro} fields \NULL{} as
+well, allowing the base type to handle attributes.
+
+The tables are declared as three fields of the type object:
+
+\begin{verbatim}
+    struct PyMethodDef *tp_methods;
+    struct PyMemberDef *tp_members;
+    struct PyGetSetDef *tp_getset;
+\end{verbatim}
+
+If \member{tp_methods} is not \NULL, it must refer to an array of
+\ctype{PyMethodDef} structures.  Each entry in the table is an
+instance of this structure:
+
+\begin{verbatim}
+typedef struct PyMethodDef {
+    char        *ml_name;       /* method name */
+    PyCFunction  ml_meth;       /* implementation function */
+    int	         ml_flags;      /* flags */
+    char        *ml_doc;        /* docstring */
+} PyMethodDef;
+\end{verbatim}
+
+One entry should be defined for each method provided by the type; no
+entries are needed for methods inherited from a base type.  One
+additional entry is needed at the end; it is a sentinel that marks the
+end of the array.  The \member{ml_name} field of the sentinel must be
+\NULL.
+
+XXX Need to refer to some unified discussion of the structure fields,
+shared with the next section.
+
+The second table is used to define attributes which map directly to
+data stored in the instance.  A variety of primitive C types are
+supported, and access may be read-only or read-write.  The structures
+in the table are defined as:
+
+\begin{verbatim}
+typedef struct PyMemberDef {
+    char *name;
+    int   type;
+    int   offset;
+    int   flags;
+    char *doc;
+} PyMemberDef;
+\end{verbatim}
+
+For each entry in the table, a descriptor will be constructed and
+added to the type which will be able to extract a value from the
+instance structure.  The \member{type} field should contain one of the
+type codes defined in the \file{structmember.h} header; the value will
+be used to determine how to convert Python values to and from C
+values.  The \member{flags} field is used to store flags which control
+how the attribute can be accessed.
+
+XXX Need to move some of this to a shared section!
+
+The following flag constants are defined in \file{structmember.h};
+they may be combined using bitwise-OR.
+
+\begin{tableii}{l|l}{constant}{Constant}{Meaning}
+  \lineii{READONLY \ttindex{READONLY}}
+         {Never writable.}
+  \lineii{RO \ttindex{RO}}
+         {Shorthand for \constant{READONLY}.}
+  \lineii{READ_RESTRICTED \ttindex{READ_RESTRICTED}}
+         {Not readable in restricted mode.}
+  \lineii{WRITE_RESTRICTED \ttindex{WRITE_RESTRICTED}}
+         {Not writable in restricted mode.}
+  \lineii{RESTRICTED \ttindex{RESTRICTED}}
+         {Not readable or writable in restricted mode.}
+\end{tableii}
+
+An interesting advantage of using the \member{tp_members} table to
+build descriptors that are used at runtime is that any attribute
+defined this way can have an associated docstring simply by providing
+the text in the table.  An application can use the introspection API
+to retrieve the descriptor from the class object, and get the
+docstring using its \member{__doc__} attribute.
+
+As with the \member{tp_methods} table, a sentinel entry with a
+\member{name} value of \NULL{} is required.  
+
+
+% XXX Descriptors need to be explained in more detail somewhere, but
+% not here.
+%
+% Descriptor objects have two handler functions which correspond to
+% the \member{tp_getattro} and \member{tp_setattro} handlers.  The
+% \method{__get__()} handler is a function which is passed the
+% descriptor, instance, and type objects, and returns the value of the
+% attribute, or it returns \NULL{} and sets an exception.  The
+% \method{__set__()} handler is passed the descriptor, instance, type,
+% and new value;
+
+
+\subsubsection{Type-specific Attribute Management}
+
+For simplicity, only the \ctype{char*} version will be demonstrated
+here; the type of the name parameter is the only difference between
+the \ctype{char*} and \ctype{PyObject*} flavors of the interface.
+This example effectively does the same thing as the generic example
+above, but does not use the generic support added in Python 2.2.  The
+value in showing this is two-fold: it demonstrates how basic attribute
+management can be done in a way that is portable to older versions of
+Python, and explains how the handler functions are called, so that if
+you do need to extend their functionality, you'll understand what
+needs to be done.
+
+The \member{tp_getattr} handler is called when the object requires an
 attribute look-up.  It is called in the same situations where the
 \method{__getattr__()} method of a class would be called.
 
@@ -624,7 +670,9 @@ A likely way to handle this is (1) to implement a set of functions
 (such as \cfunction{newdatatype_getSize()} and
 \cfunction{newdatatype_setSize()} in the example below), (2) provide a
 method table listing these functions, and (3) provide a getattr
-function that returns the result of a lookup in that table.
+function that returns the result of a lookup in that table.  The
+method table uses the same structure as the \member{tp_methods} field
+of the type object.
 
 Here is an example:
 
@@ -713,10 +761,26 @@ newdatatype_compare(newdatatypeobject * obj1, newdatatypeobject * obj2)
 
 \subsection{Abstract Protocol Support}
 
+Python supports a variety of \emph{abstract} `protocols;' the specific
+interfaces provided to use these interfaces are documented in the
+\citetitle[../api/api.html]{Python/C API Reference Manual} in the
+chapter ``\ulink{Abstract Objects Layer}{../api/abstract.html}.''
+
+A number of these abstract interfaces were defined early in the
+development of the Python implementation.  In particular, the number,
+mapping, and sequence protocols have been part of Python since the
+beginning.  Other protocols have been added over time.  For protocols
+which depend on several handler routines from the type implementation,
+the older protocols have been defined as optional blocks of handlers
+referenced by the type object, while newer protocols have been added
+using additional slots in the main type object, with a flag bit being
+set to indicate that the slots are present.  (The flag bit does not
+indicate that the slot values are non-\NULL.)
+
 \begin{verbatim}
-  tp_as_number;
-  tp_as_sequence;
-  tp_as_mapping;
+    PyNumberMethods   tp_as_number;
+    PySequenceMethods tp_as_sequence;
+    PyMappingMethods  tp_as_mapping;
 \end{verbatim}
 
 If you wish your object to be able to act like a number, a sequence,
@@ -777,7 +841,7 @@ This function takes three arguments:
     saying that keyword arguments are not supported.
 \end{enumerate}
        
-Here is a desultory example of the implementation of call function.
+Here is a desultory example of the implementation of the call function.
 
 \begin{verbatim}
 /* Implement the call function.
@@ -804,6 +868,69 @@ newdatatype_call(newdatatypeobject *obj, PyObject *args, PyObject *other)
     return result;
 }
 \end{verbatim}
+
+XXX some fields need to be added here...
+
+
+\begin{verbatim}
+    /* Added in release 2.2 */
+    /* Iterators */
+    getiterfunc tp_iter;
+    iternextfunc tp_iternext;
+\end{verbatim}
+
+These functions provide support for the iterator protocol.  Any object
+which wishes to support iteration over its contents (which may be
+generated during iteration) must implement the \code{tp_iter}
+handler.  Objects which are returned by a \code{tp_iter} handler must
+implement both the \code{tp_iter} and \code{tp_iternext} handlers.
+Both handlers take exactly one parameter, the instance for which they
+are being called, and return a new reference.  In the case of an
+error, they should set an exception and return \NULL.
+
+For an object which represents an iterable collection, the
+\code{tp_iter} handler must return an iterator object.  The iterator
+object is responsible for maintaining the state of the iteration.  For
+collections which can support multiple iterators which do not
+interfere with each other (as lists and tuples do), a new iterator
+should be created and returned.  Objects which can only be iterated
+over once (usually due to side effects of iteration) should implement
+this handler by returning a new reference to themselves, and should
+also implement the \code{tp_iternext} handler.  File objects are an
+example of such an iterator.
+
+Iterator objects should implement both handlers.  The \code{tp_iter}
+handler should return a new reference to the iterator (this is the
+same as the \code{tp_iter} handler for objects which can only be
+iterated over destructively).  The \code{tp_iternext} handler should
+return a new reference to the next object in the iteration if there is
+one.  If the iteration has reached the end, it may return \NULL{}
+without setting an exception or it may set \exception{StopIteration};
+avoiding the exception can yield slightly better performance.  If an
+actual error occurs, it should set an exception and return \NULL.
+
+
+\subsection{Supporting the Cycle Collector
+            \label{example-cycle-support}}
+
+This example shows only enough of the implementation of an extension
+type to show how the garbage collector support needs to be added.  It
+shows the definition of the object structure, the
+\member{tp_traverse}, \member{tp_clear} and \member{tp_dealloc}
+implementations, the type structure, and a constructor --- the module
+initialization needed to export the constructor to Python is not shown
+as there are no special considerations there for the collector.  To
+make this interesting, assume that the module exposes ways for the
+\member{container} field of the object to be modified.  Note that
+since no checks are made on the type of the object used to initialize
+\member{container}, we have to assume that it may be a container.
+
+\verbatiminput{cycle-gc.c}
+
+Full details on the APIs related to the cycle detector are in
+\ulink{Supporting Cyclic Garbarge
+Collection}{../api/supporting-cycle-detection.html} in the
+\citetitle[../api/api.html]{Python/C API Reference Manual}.
 
 
 \subsection{More Suggestions}

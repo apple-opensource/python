@@ -61,7 +61,11 @@ PyArg_VaParse(PyObject *args, char *format, va_list va)
 #ifdef VA_LIST_IS_ARRAY
 	memcpy(lva, va, sizeof(va_list));
 #else
+#ifdef __va_copy
+	__va_copy(lva, va);
+#else
 	lva = va;
+#endif
 #endif
 
 	return vgetargs1(args, format, &lva, 0);
@@ -383,6 +387,19 @@ converterr(char *expected, PyObject *arg, char *msgbuf, size_t bufsize)
 
 #define CONV_UNICODE "(unicode conversion error)"
 
+/* explicitly check for float arguments when integers are expected.  For now
+ * signal a warning.  Returns true if an exception was raised. */
+static int
+float_argument_error(PyObject *arg)
+{
+	if (PyFloat_Check(arg) &&
+	    PyErr_Warn(PyExc_DeprecationWarning,
+		       "integer argument expected, got float" ))
+		return 1;
+	else
+		return 0;
+}
+
 /* Convert a non-tuple argument.  Return NULL if conversion went OK,
    or a string with a message describing the failure.  The message is
    formatted as "must be <desired type>, not <actual type>".
@@ -396,13 +413,18 @@ convertsimple(PyObject *arg, char **p_format, va_list *p_va, char *msgbuf,
 {
 	char *format = *p_format;
 	char c = *format++;
+#ifdef Py_USING_UNICODE
 	PyObject *uarg;
+#endif
 	
 	switch (c) {
 	
 	case 'b': { /* unsigned byte -- very short int */
 		char *p = va_arg(*p_va, char *);
-		long ival = PyInt_AsLong(arg);
+		long ival;
+		if (float_argument_error(arg))
+			return NULL;
+		ival = PyInt_AsLong(arg);
 		if (ival == -1 && PyErr_Occurred())
 			return converterr("integer<b>", arg, msgbuf, bufsize);
 		else if (ival < 0) {
@@ -423,19 +445,12 @@ convertsimple(PyObject *arg, char **p_format, va_list *p_va, char *msgbuf,
 	case 'B': {/* byte sized bitfield - both signed and unsigned
 		      values allowed */  
 		char *p = va_arg(*p_va, char *);
-		long ival = PyInt_AsLong(arg);
+		long ival;
+		if (float_argument_error(arg))
+			return NULL;
+		ival = PyInt_AsUnsignedLongMask(arg);
 		if (ival == -1 && PyErr_Occurred())
-			return converterr("integer<b>", arg, msgbuf, bufsize);
-		else if (ival < SCHAR_MIN) {
-			PyErr_SetString(PyExc_OverflowError,
-			"byte-sized integer bitfield is less than minimum");
 			return converterr("integer<B>", arg, msgbuf, bufsize);
-		}
-		else if (ival > (int)UCHAR_MAX) {
-			PyErr_SetString(PyExc_OverflowError,
-			"byte-sized integer bitfield is greater than maximum");
-			return converterr("integer<B>", arg, msgbuf, bufsize);
-		}
 		else
 			*p = (unsigned char) ival;
 		break;
@@ -443,7 +458,10 @@ convertsimple(PyObject *arg, char **p_format, va_list *p_va, char *msgbuf,
 	
 	case 'h': {/* signed short int */
 		short *p = va_arg(*p_va, short *);
-		long ival = PyInt_AsLong(arg);
+		long ival;
+		if (float_argument_error(arg))
+			return NULL;
+		ival = PyInt_AsLong(arg);
 		if (ival == -1 && PyErr_Occurred())
 			return converterr("integer<h>", arg, msgbuf, bufsize);
 		else if (ival < SHRT_MIN) {
@@ -464,19 +482,12 @@ convertsimple(PyObject *arg, char **p_format, va_list *p_va, char *msgbuf,
 	case 'H': { /* short int sized bitfield, both signed and
 		       unsigned allowed */ 
 		unsigned short *p = va_arg(*p_va, unsigned short *);
-		long ival = PyInt_AsLong(arg);
+		long ival;
+		if (float_argument_error(arg))
+			return NULL;
+		ival = PyInt_AsUnsignedLongMask(arg);
 		if (ival == -1 && PyErr_Occurred())
 			return converterr("integer<H>", arg, msgbuf, bufsize);
-		else if (ival < SHRT_MIN) {
-			PyErr_SetString(PyExc_OverflowError,
-			"short integer bitfield is less than minimum");
-			return converterr("integer<H>", arg, msgbuf, bufsize);
-		}
-		else if (ival > USHRT_MAX) {
-			PyErr_SetString(PyExc_OverflowError,
-			"short integer bitfield is greater than maximum");
-			return converterr("integer<H>", arg, msgbuf, bufsize);
-		}
 		else
 			*p = (unsigned short) ival;
 		break;
@@ -484,7 +495,10 @@ convertsimple(PyObject *arg, char **p_format, va_list *p_va, char *msgbuf,
 	
 	case 'i': {/* signed int */
 		int *p = va_arg(*p_va, int *);
-		long ival = PyInt_AsLong(arg);
+		long ival;
+		if (float_argument_error(arg))
+			return NULL;
+		ival = PyInt_AsLong(arg);
 		if (ival == -1 && PyErr_Occurred())
 			return converterr("integer<i>", arg, msgbuf, bufsize);
 		else if (ival > INT_MAX) {
@@ -502,25 +516,70 @@ convertsimple(PyObject *arg, char **p_format, va_list *p_va, char *msgbuf,
 		break;
 	}
 
+	case 'I': { /* int sized bitfield, both signed and
+		       unsigned allowed */ 
+		unsigned int *p = va_arg(*p_va, unsigned int *);
+		unsigned int ival;
+		if (float_argument_error(arg))
+			return NULL;
+		ival = PyInt_AsUnsignedLongMask(arg);
+		if (ival == -1 && PyErr_Occurred())
+			return converterr("integer<I>", arg, msgbuf, bufsize);
+		else
+			*p = ival;
+		break;
+	}
+	
 	case 'l': {/* long int */
 		long *p = va_arg(*p_va, long *);
-		long ival = PyInt_AsLong(arg);
+		long ival;
+		if (float_argument_error(arg))
+			return NULL;
+		ival = PyInt_AsLong(arg);
 		if (ival == -1 && PyErr_Occurred())
 			return converterr("integer<l>", arg, msgbuf, bufsize);
 		else
 			*p = ival;
 		break;
 	}
+
+	case 'k': { /* long sized bitfield */
+		unsigned long *p = va_arg(*p_va, unsigned long *);
+		unsigned long ival;
+		if (PyInt_Check(arg))
+			ival = PyInt_AsUnsignedLongMask(arg);
+		else if (PyLong_Check(arg))
+			ival = PyLong_AsUnsignedLongMask(arg);
+		else
+			return converterr("integer<k>", arg, msgbuf, bufsize);
+		*p = ival;
+		break;
+	}
 	
 #ifdef HAVE_LONG_LONG
-	case 'L': {/* LONG_LONG */
-		LONG_LONG *p = va_arg( *p_va, LONG_LONG * );
-		LONG_LONG ival = PyLong_AsLongLong( arg );
-		if( ival == (LONG_LONG)-1 && PyErr_Occurred() ) {
+	case 'L': {/* PY_LONG_LONG */
+		PY_LONG_LONG *p = va_arg( *p_va, PY_LONG_LONG * );
+		PY_LONG_LONG ival = PyLong_AsLongLong( arg );
+		if( ival == (PY_LONG_LONG)-1 && PyErr_Occurred() ) {
 			return converterr("long<L>", arg, msgbuf, bufsize);
 		} else {
 			*p = ival;
 		}
+		break;
+	}
+
+	case 'K': { /* long long sized bitfield */
+		unsigned PY_LONG_LONG *p = va_arg(*p_va, unsigned PY_LONG_LONG *);
+		unsigned PY_LONG_LONG ival;
+		if (float_argument_error(arg))
+			return NULL;
+		if (PyInt_Check(arg))
+			ival = PyInt_AsUnsignedLongMask(arg);
+		else if (PyLong_Check(arg))
+			ival = PyLong_AsUnsignedLongLongMask(arg);
+		else
+			return converterr("integer<K>", arg, msgbuf, bufsize);
+		*p = ival;
 		break;
 	}
 #endif
@@ -838,16 +897,20 @@ convertsimple(PyObject *arg, char **p_format, va_list *p_va, char *msgbuf,
 		if (*format == '#') { /* any buffer-like object */
 			void **p = (void **)va_arg(*p_va, char **);
 			int *q = va_arg(*p_va, int *);
+			if (PyUnicode_Check(arg)) {
+			    	*p = PyUnicode_AS_UNICODE(arg);
+				*q = PyUnicode_GET_SIZE(arg);
+			}
+			else {
 			char *buf;
 			int count = convertbuffer(arg, p, &buf);
-
 			if (count < 0)
 				return converterr(buf, arg, msgbuf, bufsize);
 			*q = count/(sizeof(Py_UNICODE)); 
+			}
 			format++;
 		} else {
 			Py_UNICODE **p = va_arg(*p_va, Py_UNICODE **);
-			
 			if (PyUnicode_Check(arg))
 				*p = PyUnicode_AS_UNICODE(arg);
 			else
@@ -1212,7 +1275,13 @@ vgetargskeywords(PyObject *args, PyObject *keywords, char *format,
 		int pos = 0;
 		while (PyDict_Next(keywords, &pos, &key, &value)) {
 			int match = 0;
-			char *ks = PyString_AsString(key);
+			char *ks;
+			if (!PyString_Check(key)) {
+				PyErr_SetString(PyExc_TypeError, 
+					        "keywords must be strings");
+				return 0;
+			}
+			ks = PyString_AsString(key);
 			for (i = 0; i < max; i++) {
 				if (!strcmp(ks, kwlist[i])) {
 					match = 1;
@@ -1273,9 +1342,9 @@ skipitem(char **p_format, va_list *p_va)
 		}
 	
 #ifdef HAVE_LONG_LONG
-	case 'L': /* LONG_LONG int */
+	case 'L': /* PY_LONG_LONG int */
 		{
-			(void) va_arg(*p_va, LONG_LONG *);
+			(void) va_arg(*p_va, PY_LONG_LONG *);
 			break;
 		}
 #endif

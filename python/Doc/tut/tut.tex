@@ -176,7 +176,7 @@ your local Python guru or system administrator.  (E.g.,
 \file{/usr/local/python} is a popular alternative location.)
 
 Typing an end-of-file character (\kbd{Control-D} on \UNIX,
-\kbd{Control-Z} on DOS or Windows) at the primary prompt causes the
+\kbd{Control-Z} on Windows) at the primary prompt causes the
 interpreter to exit with a zero exit status.  If that doesn't work,
 you can exit the interpreter by typing the following commands:
 \samp{import sys; sys.exit()}.
@@ -640,6 +640,17 @@ separated by a colon.
 'lp'
 \end{verbatim}
 
+Slice indices have useful defaults; an omitted first index defaults to
+zero, an omitted second index defaults to the size of the string being
+sliced.
+
+\begin{verbatim}
+>>> word[:2]    # The first two characters
+'He'
+>>> word[2:]    # All but the first two characters
+'lpA'
+\end{verbatim}
+
 Unlike a C string, Python strings cannot be changed.  Assigning to an 
 indexed position in the string results in an error:
 
@@ -662,17 +673,6 @@ efficient:
 'xelpA'
 >>> 'Splat' + word[4]
 'SplatA'
-\end{verbatim}
-
-Slice indices have useful defaults; an omitted first index defaults to
-zero, an omitted second index defaults to the size of the string being
-sliced.
-
-\begin{verbatim}
->>> word[:2]    # The first two characters
-'He'
->>> word[2:]    # All but the first two characters
-'lpA'
 \end{verbatim}
 
 Here's a useful invariant of slice operations:
@@ -1215,7 +1215,7 @@ program requires no action.
 For example:
 
 \begin{verbatim}
->>> while 1:
+>>> while True:
 ...       pass # Busy-wait for keyboard interrupt
 ... 
 \end{verbatim}
@@ -1358,7 +1358,7 @@ arguments than it is defined
 
 \begin{verbatim}
 def ask_ok(prompt, retries=4, complaint='Yes or no, please!'):
-    while 1:
+    while True:
         ok = raw_input(prompt)
         if ok in ('y', 'ye', 'yes'): return 1
         if ok in ('n', 'no', 'nop', 'nope'): return 0
@@ -1485,7 +1485,9 @@ def cheeseshop(kind, *arguments, **keywords):
     print "-- I'm sorry, we're all out of", kind
     for arg in arguments: print arg
     print '-'*40
-    for kw in keywords.keys(): print kw, ':', keywords[kw]
+    keys = keywords.keys()
+    keys.sort()
+    for kw in keys: print kw, ':', keywords[kw]
 \end{verbatim}
 
 It could be called like this:
@@ -1510,6 +1512,11 @@ client : John Cleese
 shopkeeper : Michael Palin
 sketch : Cheese Shop Sketch
 \end{verbatim}
+
+Note that the \method{sort()} method of the list of keyword argument
+names is called before printing the contents of the \code{keywords}
+dictionary; if this is not done, the order in which the arguments are
+printed is undefined.
 
 
 \subsection{Arbitrary Argument Lists \label{arbitraryArgs}}
@@ -1611,45 +1618,54 @@ more detail, and adds some new things as well.
 The list data type has some more methods.  Here are all of the methods
 of list objects:
 
-\begin{description}
-
-\item[\code{append(x)}]
+\begin{methoddesc}[list]{append}{x}
 Add an item to the end of the list;
-equivalent to \code{a[len(a):] = [x]}.
+equivalent to \code{a[len(a):] = [\var{x}]}.
+\end{methoddesc}
 
-\item[\code{extend(L)}]
+\begin{methoddesc}[list]{extend}{L}
 Extend the list by appending all the items in the given list;
-equivalent to \code{a[len(a):] = L}.
+equivalent to \code{a[len(a):] = \var{L}}.
+\end{methoddesc}
 
-\item[\code{insert(i, x)}]
-Insert an item at a given position.  The first argument is the index of
-the element before which to insert, so \code{a.insert(0, x)} inserts at
-the front of the list, and \code{a.insert(len(a), x)} is equivalent to
-\code{a.append(x)}.
+\begin{methoddesc}[list]{insert}{i, x}
+Insert an item at a given position.  The first argument is the index
+of the element before which to insert, so \code{a.insert(0, \var{x})}
+inserts at the front of the list, and \code{a.insert(len(a), \var{x})}
+is equivalent to \code{a.append(\var{x})}.
+\end{methoddesc}
 
-\item[\code{remove(x)}]
-Remove the first item from the list whose value is \code{x}.
+\begin{methoddesc}[list]{remove}{x}
+Remove the first item from the list whose value is \var{x}.
 It is an error if there is no such item.
+\end{methoddesc}
 
-\item[\code{pop(\optional{i})}]
+\begin{methoddesc}[list]{pop}{\optional{i}}
 Remove the item at the given position in the list, and return it.  If
 no index is specified, \code{a.pop()} returns the last item in the
-list.  The item is also removed from the list.
+list.  The item is also removed from the list.  (The square brackets
+around the \var{i} in the method signature denote that the parameter
+is optional, not that you should type square brackets at that
+position.  You will see this notation frequently in the
+\citetitle[../lib/lib.html]{Python Library Reference}.)
+\end{methoddesc}
 
-\item[\code{index(x)}]
-Return the index in the list of the first item whose value is \code{x}.
+\begin{methoddesc}[list]{index}{x}
+Return the index in the list of the first item whose value is \var{x}.
 It is an error if there is no such item.
+\end{methoddesc}
 
-\item[\code{count(x)}]
-Return the number of times \code{x} appears in the list.
+\begin{methoddesc}[list]{count}{x}
+Return the number of times \var{x} appears in the list.
+\end{methoddesc}
 
-\item[\code{sort()}]
+\begin{methoddesc}[list]{sort}{}
 Sort the items of the list, in place.
+\end{methoddesc}
 
-\item[\code{reverse()}]
+\begin{methoddesc}[list]{reverse}{}
 Reverse the elements of the list, in place.
-
-\end{description}
+\end{methoddesc}
 
 An example that uses most of the list methods:
 
@@ -1803,6 +1819,11 @@ item, then to the result and the next item, and so on.  For example,
 0
 \end{verbatim}
 
+Don't use this example's definition of \function{sum()}: since summing
+numbers is such a common need, a built-in function
+\code{sum(\var{sequence})} is already provided, and works exactly like
+this.
+\versionadded{2.3}
 
 \subsection{List Comprehensions}
 
@@ -1810,7 +1831,7 @@ List comprehensions provide a concise way to create lists without resorting
 to use of \function{map()}, \function{filter()} and/or \keyword{lambda}.
 The resulting list definition tends often to be clearer than lists built
 using those constructs.  Each list comprehension consists of an expression
-following by a \keyword{for} clause, then zero or more \keyword{for} or
+followed by a \keyword{for} clause, then zero or more \keyword{for} or
 \keyword{if} clauses.  The result will be a list resulting from evaluating
 the expression in the context of the \keyword{for} and \keyword{if} clauses
 which follow it.  If the expression would evaluate to a tuple, it must be
@@ -1827,8 +1848,6 @@ parenthesized.
 [12, 18]
 >>> [3*x for x in vec if x < 2]
 []
->>> [{x: x**2} for x in vec]
-[{2: 4}, {4: 16}, {6: 36}]
 >>> [[x,x**2] for x in vec]
 [[2, 4], [4, 16], [6, 36]]
 >>> [x, x**2 for x in vec]	# error - parens required for tuples
@@ -1846,6 +1865,19 @@ SyntaxError: invalid syntax
 [6, 5, -7, 8, 7, -5, 10, 9, -3]
 >>> [vec1[i]*vec2[i] for i in range(len(vec1))]
 [8, 12, -54]
+\end{verbatim}
+
+To make list comprehensions match the behavior of \keyword{for}
+loops, assignments to the loop variable remain visible outside
+of the comprehension:
+
+\begin{verbatim}
+>>> x = 100                     # this gets overwritten
+>>> [x**3 for x in range(5)]
+[0, 1, 8, 27, 64]
+>>> x
+4                               # the final value for range(5)
+>>
 \end{verbatim}
 
 
@@ -2007,6 +2039,60 @@ Here is a small example using a dictionary:
 1
 \end{verbatim}
 
+The \function{dict()} contructor builds dictionaries directly from
+lists of key-value pairs stored as tuples.  When the pairs form a
+pattern, list comprehensions can compactly specify the key-value list.
+
+\begin{verbatim}
+>>> dict([('sape', 4139), ('guido', 4127), ('jack', 4098)])
+{'sape': 4139, 'jack': 4098, 'guido': 4127}
+>>> dict([(x, x**2) for x in vec])     # use a list comprehension
+{2: 4, 4: 16, 6: 36}
+\end{verbatim}
+
+
+\section{Looping Techniques \label{loopidioms}}
+
+When looping through dictionaries, the key and corresponding value can
+be retrieved at the same time using the \method{items()} method.
+
+\begin{verbatim}
+>>> knights = {'gallahad': 'the pure', 'robin': 'the brave'}
+>>> for k, v in knights.items():
+...     print k, v
+...
+gallahad the pure
+robin the brave
+\end{verbatim}
+ 
+When looping through a sequence, the position index and corresponding
+value can be retrieved at the same time using the
+\function{enumerate()} function.
+
+\begin{verbatim} 
+>>> for i, v in enumerate(['tic', 'tac', 'toe']):
+...     print i, v
+...
+0 tic
+1 tac
+2 toe
+\end{verbatim}
+
+To loop over two or more sequences at the same time, the entries
+can be paired with the \function{zip()} function.
+
+\begin{verbatim}
+>>> questions = ['name', 'quest', 'favorite color']
+>>> answers = ['lancelot', 'the holy grail', 'blue']
+>>> for q, a in zip(questions, answers):
+...     print 'What is your %s?  It is %s.' % (q, a)
+...	
+What is your name?  It is lancelot.
+What is your quest?  It is the holy grail.
+What is your favorite color?  It is blue.
+\end{verbatim}
+
+
 \section{More on Conditions \label{conditions}}
 
 The conditions used in \code{while} and \code{if} statements above can
@@ -2032,12 +2118,13 @@ the highest priority, and \code{or} the lowest, so that
 course, parentheses can be used to express the desired composition.
 
 The Boolean operators \code{and} and \code{or} are so-called
-\emph{shortcut} operators: their arguments are evaluated from left to
-right, and evaluation stops as soon as the outcome is determined.
-E.g., if \code{A} and \code{C} are true but \code{B} is false, \code{A
-and B and C} does not evaluate the expression C.  In general, the
-return value of a shortcut operator, when used as a general value and
-not as a Boolean, is the last evaluated argument.
+\emph{short-circuit} operators: their arguments are evaluated from
+left to right, and evaluation stops as soon as the outcome is
+determined.  For example, if \code{A} and \code{C} are true but
+\code{B} is false, \code{A and B and C} does not evaluate the
+expression \code{C}.  In general, the return value of a short-circuit
+operator, when used as a general value and not as a Boolean, is the
+last evaluated argument.
 
 It is possible to assign the result of a comparison or other Boolean
 expression to a variable.  For example,
@@ -2271,12 +2358,11 @@ Some tips for experts:
 
 \item
 When the Python interpreter is invoked with the \programopt{-O} flag,
-optimized code is generated and stored in \file{.pyo} files.
-The optimizer currently doesn't help much; it only removes
-\keyword{assert} statements and \code{SET_LINENO} instructions.
-When \programopt{-O} is used, \emph{all} bytecode is optimized;
-\code{.pyc} files are ignored and \code{.py} files are compiled to
-optimized bytecode.
+optimized code is generated and stored in \file{.pyo} files.  The
+optimizer currently doesn't help much; it only removes
+\keyword{assert} statements.  When \programopt{-O} is used, \emph{all}
+bytecode is optimized; \code{.pyc} files are ignored and \code{.py}
+files are compiled to optimized bytecode.
 
 \item
 Passing two \programopt{-O} flags to the Python interpreter
@@ -2370,14 +2456,15 @@ a module defines.  It returns a sorted list of strings:
 ['__name__', 'fib', 'fib2']
 >>> dir(sys)
 ['__displayhook__', '__doc__', '__excepthook__', '__name__', '__stderr__',
- '__stdin__', '__stdout__', '_getframe', 'argv', 'builtin_module_names',
- 'byteorder', 'copyright', 'displayhook', 'exc_info', 'exc_type',
- 'excepthook', 'exec_prefix', 'executable', 'exit', 'getdefaultencoding',
- 'getdlopenflags', 'getrecursionlimit', 'getrefcount', 'hexversion',
- 'maxint', 'maxunicode', 'modules', 'path', 'platform', 'prefix', 'ps1',
- 'ps2', 'setcheckinterval', 'setdlopenflags', 'setprofile',
- 'setrecursionlimit', 'settrace', 'stderr', 'stdin', 'stdout', 'version',
- 'version_info', 'warnoptions']
+ '__stdin__', '__stdout__', '_getframe', 'api_version', 'argv', 
+ 'builtin_module_names', 'byteorder', 'callstats', 'copyright',
+ 'displayhook', 'exc_clear', 'exc_info', 'exc_type', 'excepthook',
+ 'exec_prefix', 'executable', 'exit', 'getdefaultencoding', 'getdlopenflags',
+ 'getrecursionlimit', 'getrefcount', 'hexversion', 'maxint', 'maxunicode',
+ 'meta_path', 'modules', 'path', 'path_hooks', 'path_importer_cache',
+ 'platform', 'prefix', 'ps1', 'ps2', 'setcheckinterval', 'setdlopenflags',
+ 'setprofile', 'setrecursionlimit', 'settrace', 'stderr', 'stdin', 'stdout',
+ 'version', 'version_info', 'warnoptions']
 \end{verbatim}
 
 Without arguments, \function{dir()} lists the names you have defined
@@ -2402,25 +2489,26 @@ standard module \module{__builtin__}\refbimodindex{__builtin__}:
 >>> dir(__builtin__)
 ['ArithmeticError', 'AssertionError', 'AttributeError',
  'DeprecationWarning', 'EOFError', 'Ellipsis', 'EnvironmentError',
- 'Exception', 'FloatingPointError', 'IOError', 'ImportError',
+ 'Exception', 'False', 'FloatingPointError', 'IOError', 'ImportError',
  'IndentationError', 'IndexError', 'KeyError', 'KeyboardInterrupt',
  'LookupError', 'MemoryError', 'NameError', 'None', 'NotImplemented',
  'NotImplementedError', 'OSError', 'OverflowError', 'OverflowWarning',
- 'ReferenceError', 'RuntimeError', 'RuntimeWarning', 'StandardError',
- 'StopIteration', 'SyntaxError', 'SyntaxWarning', 'SystemError',
- 'SystemExit', 'TabError', 'TypeError', 'UnboundLocalError',
- 'UnicodeError', 'UserWarning', 'ValueError', 'Warning',
- 'ZeroDivisionError', '_', '__debug__', '__doc__', '__import__',
- '__name__', 'abs', 'apply', 'buffer', 'callable', 'chr', 'classmethod',
- 'cmp', 'coerce', 'compile', 'complex', 'copyright', 'credits', 'delattr',
- 'dict', 'dir', 'divmod', 'eval', 'execfile', 'exit', 'file', 'filter',
- 'float', 'getattr', 'globals', 'hasattr', 'hash', 'help', 'hex', 'id',
- 'input', 'int', 'intern', 'isinstance', 'issubclass', 'iter', 'len',
- 'license', 'list', 'locals', 'long', 'map', 'max', 'min', 'object',
- 'oct', 'open', 'ord', 'pow', 'property', 'quit', 'range', 'raw_input',
- 'reduce', 'reload', 'repr', 'round', 'setattr', 'slice', 'staticmethod',
- 'str', 'super', 'tuple', 'type', 'unichr', 'unicode', 'vars', 'xrange',
- 'zip']
+ 'PendingDeprecationWarning', 'ReferenceError',
+ 'RuntimeError', 'RuntimeWarning', 'StandardError', 'StopIteration',
+ 'SyntaxError', 'SyntaxWarning', 'SystemError', 'SystemExit', 'TabError',
+ 'True', 'TypeError', 'UnboundLocalError', 'UnicodeError', 'UserWarning',
+ 'ValueError', 'Warning', 'ZeroDivisionError', '__debug__', '__doc__',
+ '__import__', '__name__', 'abs', 'apply', 'bool', 'buffer',
+ 'callable', 'chr', 'classmethod', 'cmp', 'coerce', 'compile', 'complex',
+ 'copyright', 'credits', 'delattr', 'dict', 'dir', 'divmod',
+ 'enumerate', 'eval', 'execfile', 'exit', 'file', 'filter', 'float',
+ 'getattr', 'globals', 'hasattr', 'hash', 'help', 'hex', 'id',
+ 'input', 'int', 'intern', 'isinstance', 'issubclass', 'iter',
+ 'len', 'license', 'list', 'locals', 'long', 'map', 'max', 'min',
+ 'object', 'oct', 'open', 'ord', 'pow', 'property', 'quit',
+ 'range', 'raw_input', 'reduce', 'reload', 'repr', 'round',
+ 'setattr', 'slice', 'staticmethod', 'str', 'string', 'sum', 'super',
+ 'tuple', 'type', 'unichr', 'unicode', 'vars', 'xrange', 'zip']
 \end{verbatim}
 
 
@@ -2473,6 +2561,9 @@ Sound/                          Top-level package
               karaoke.py
               ...
 \end{verbatim}
+
+When importing the package, Python searchs through the directories
+on \code{sys.path} looking for the package subdirectory.
 
 The \file{__init__.py} files are required to make Python treat the
 directories as containing packages; this is done to prevent
@@ -2590,7 +2681,7 @@ current namespace because they are defined in the
 \module{Sound.Effects} package when the \code{from...import} statement
 is executed.  (This also works when \code{__all__} is defined.)
 
-Note that in general the practicing of importing * from a module or
+Note that in general the practice of importing \code{*} from a module or
 package is frowned upon, since it often causes poorly readable code.
 However, it is okay to use it to save typing in interactive sessions,
 and certain modules are designed to export only names that follow
@@ -2630,6 +2721,17 @@ Sound.Effects import echo}.
 %\code{__.__} for the parent package, and so on.  This feature was dropped
 %because of its awkwardness; since most packages will have a relative
 %shallow substructure, this is no big loss.)
+
+\subsection{Packages in Multiple Directories}
+
+Packages support one more special attribute, \member{__path__}.  This
+is initialized to be a list containing the name of the directory
+holding the package's \file{__init__.py} before the code in that file
+is executed.  This variable can be modified; doing so affects future
+searches for modules and subpackages contained in the package.
+
+While this feature is not often needed, it can be used to extend the
+set of modules found in a package.
 
 
 
@@ -3007,10 +3109,10 @@ Syntax errors, also known as parsing errors, are perhaps the most common
 kind of complaint you get while you are still learning Python:
 
 \begin{verbatim}
->>> while 1 print 'Hello world'
+>>> while True print 'Hello world'
   File "<stdin>", line 1, in ?
-    while 1 print 'Hello world'
-                ^
+    while True print 'Hello world'
+                   ^
 SyntaxError: invalid syntax
 \end{verbatim}
 
@@ -3039,7 +3141,7 @@ ZeroDivisionError: integer division or modulo
 >>> 4 + spam*3
 Traceback (most recent call last):
   File "<stdin>", line 1, in ?
-NameError: spam
+NameError: name 'spam' is not defined
 >>> '2' + 2
 Traceback (most recent call last):
   File "<stdin>", line 1, in ?
@@ -3080,7 +3182,7 @@ supports); note that a user-generated interruption is signalled by
 raising the \exception{KeyboardInterrupt} exception.
 
 \begin{verbatim}
->>> while 1:
+>>> while True:
 ...     try:
 ...         x = int(raw_input("Please enter a number: "))
 ...         break
@@ -3481,12 +3583,17 @@ that an unqualified reference to a name attempts to find the name in
 the namespace.
 
 Although scopes are determined statically, they are used dynamically.
-At any time during execution, exactly three nested scopes are in use
-(exactly three namespaces are directly accessible): the
-innermost scope, which is searched first, contains the local names,
-the middle scope, searched next, contains the current module's global
-names, and the outermost scope (searched last) is the namespace
-containing built-in names.
+At any time during execution, there are at least three nested scopes whose
+namespaces are directly accessible: the innermost scope, which is searched
+first, contains the local names; the namespaces of any enclosing
+functions, which are searched starting with the nearest enclosing scope;
+the middle scope, searched next, contains the current module's global names;
+and the outermost scope (searched last) is the namespace containing built-in
+names.
+
+If a name is declared global, then all references and assignments go
+directly to the middle scope containing the module's global names.
+Otherwise, all variables found outside of the innermost scope are read-only.
 
 Usually, the local scope references the local names of the (textually)
 current function.  Outside of functions, the local scope references
@@ -3686,7 +3793,7 @@ later time.  For example:
 
 \begin{verbatim}
 xf = x.f
-while 1:
+while True:
     print xf()
 \end{verbatim}
 
@@ -3943,27 +4050,6 @@ code that is byte-compiled together.  The same restriction applies to
 \code{getattr()}, \code{setattr()} and \code{delattr()}, as well as
 when referencing \code{__dict__} directly.
 
-Here's an example of a class that implements its own
-\method{__getattr__()} and \method{__setattr__()} methods and stores
-all attributes in a private variable, in a way that works in all
-versions of Python, including those available before this feature was
-added:
-
-\begin{verbatim}
-class VirtualAttributes:
-    __vdict = None
-    __vdict_name = locals().keys()[0]
-     
-    def __init__(self):
-        self.__dict__[self.__vdict_name] = {}
-    
-    def __getattr__(self, name):
-        return self.__vdict[name]
-    
-    def __setattr__(self, name, value):
-        self.__vdict[name] = value
-\end{verbatim}
-
 
 \section{Odds and Ends \label{odds}}
 
@@ -4104,8 +4190,7 @@ and may already contain the solution for your problem.
 
 \appendix
 
-\chapter{Interactive Input Editing and History Substitution
-         \label{interacting}}
+\chapter{Interactive Input Editing and History Substitution\label{interacting}}
 
 Some versions of the Python interpreter support editing of the current
 input line and history substitution, similar to facilities found in
@@ -4267,9 +4352,8 @@ check (or even suggest) matching parentheses, quotes, etc., would also
 be useful.
 
 
-\chapter{Floating Point Arithmetic:  Issues and Limitations
-         \label{fp-issues}}
-\sectionauthor{Tim Peters}{tim.one@home.com}
+\chapter{Floating Point Arithmetic:  Issues and Limitations\label{fp-issues}}
+\sectionauthor{Tim Peters}{tim_one@email.msn.com}
 
 Floating-point numbers are represented in computer hardware as
 base 2 (binary) fractions.  For example, the decimal fraction

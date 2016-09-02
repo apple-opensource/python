@@ -108,7 +108,7 @@ class _Database:
     def __setitem__(self, key, val):
         if not type(key) == type('') == type(val):
             raise TypeError, "keys and values must be strings"
-        if not self._index.has_key(key):
+        if not key in self._index:
             (pos, siz) = self._addval(val)
             self._addkey(key, (pos, siz))
         else:
@@ -130,10 +130,10 @@ class _Database:
         return self._index.keys()
 
     def has_key(self, key):
-        return self._index.has_key(key)
+        return key in self._index
 
     def __contains__(self, key):
-        return self._index.has_key(key)
+        return key in self._index
 
     def iterkeys(self):
         return self._index.iterkeys()
@@ -150,9 +150,21 @@ class _Database:
     def __del__(self):
         if self._index is not None:
             self._commit()
-  
+
 
 
 def open(file, flag=None, mode=0666):
-    # flag, mode arguments are currently ignored
+    """Open the database file, filename, and return corresponding object.
+
+    The flag argument, used to control how the database is opened in the
+    other DBM implementations, is ignored in the dumbdbm module; the
+    database is always opened for update, and will be created if it does
+    not exist.
+
+    The optional mode argument is the UNIX mode of the file, used only when
+    the database has to be created.  It defaults to octal code 0666 (and
+    will be modified by the prevailing umask).
+
+    """
+    # flag argument is currently ignored
     return _Database(file, mode)

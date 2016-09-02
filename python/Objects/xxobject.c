@@ -2,7 +2,7 @@
 /* Use this file as a template to start implementing a new object type.
    If your objects will be called foobar, start by copying this file to
    foobarobject.c, changing all occurrences of xx to foobar and all
-   occurrences of Xx by Foobar.  You will probably want to delete all
+   occurrences of Xx to Foobar.  You will probably want to delete all
    references to 'x_attr' and add your own types of attributes
    instead.  Maybe you want to name your local variables other than
    'xp'.  If your object type is needed in other files, you'll have to
@@ -18,7 +18,7 @@ typedef struct {
 	PyObject	*x_attr;	/* Attributes dictionary */
 } xxobject;
 
-staticforward PyTypeObject Xxtype;
+static PyTypeObject Xxtype;
 
 #define is_xxobject(v)		((v)->ob_type == &Xxtype)
 
@@ -26,7 +26,7 @@ static xxobject *
 newxxobject(PyObject *arg)
 {
 	xxobject *xp;
-	xp = PyObject_NEW(xxobject, &Xxtype);
+	xp = PyObject_New(xxobject, &Xxtype);
 	if (xp == NULL)
 		return NULL;
 	xp->x_attr = NULL;
@@ -39,7 +39,7 @@ static void
 xx_dealloc(xxobject *xp)
 {
 	Py_XDECREF(xp->x_attr);
-	PyObject_DEL(xp);
+	PyObject_Del(xp);
 }
 
 static PyObject *

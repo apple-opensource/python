@@ -1,0 +1,2 @@
+/^CFBundleShortVersionString/s/".*"/"0.1"/
+w

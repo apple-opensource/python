@@ -10,6 +10,7 @@ import traceback
 import MacOS
 import MacPrefs
 from Carbon import Qd
+import EasyDialogs
 import PyInteractive
 
 if not hasattr(sys, 'ps1'):
@@ -75,21 +76,23 @@ class ConsoleTextWidget(W.EditText):
 			if char == Wkeys.returnkey:
 				text = self.get()[self._inputstart:selstart]
 				text = string.join(string.split(text, "\r"), "\n")
-				saveyield = MacOS.EnableAppswitch(0)
+				if hasattr(MacOS, 'EnableAppswitch'):
+					saveyield = MacOS.EnableAppswitch(0)
 				self.pyinteractive.executeline(text, self, self._namespace)
-				MacOS.EnableAppswitch(saveyield)
+				if hasattr(MacOS, 'EnableAppswitch'):
+					MacOS.EnableAppswitch(saveyield)
 				selstart, selend = self.getselection()
 				self._inputstart = selstart
 	
 	def domenu_save_as(self, *args):
-		import macfs
-		fss, ok = macfs.StandardPutFile('Save console text as:', 'console.txt')
-		if not ok:
+		filename = EasyDialogs.AskFileForSave(message='Save console text as:', 
+			savedFileName='console.txt')
+		if not filename:
 			return
-		f = open(fss.as_pathname(), 'wb')
+		f = open(filename, 'wb')
 		f.write(self.get())
 		f.close()
-		fss.SetCreatorType(W._signature, 'TEXT')
+		MacOS.SetCreatorAndType(filename, W._signature, 'TEXT')
 	
 	def write(self, text):
 		self._buf = self._buf + text
@@ -106,6 +109,8 @@ class ConsoleTextWidget(W.EditText):
 		self._buf = ""
 		self.ted.WEClearUndo()
 		self.updatescrollbars()
+		if self._parentwindow.wid.GetWindowPort().QDIsPortBuffered():
+			self._parentwindow.wid.GetWindowPort().QDFlushPortBuffer(None)
 	
 	def selection_ok(self):
 		selstart, selend = self.getselection()
@@ -236,15 +241,21 @@ class OutputTextWidget(W.EditText):
 	
 	def domenu_save_as(self, *args):
 		title = self._parentwindow.gettitle()
-		import macfs
-		fss, ok = macfs.StandardPutFile('Save %s text as:' % title, title + '.txt')
-		if not ok:
+		filename = EasyDialogs.AskFileForSave(message='Save %s text as:' % title, 
+			savedFileName=title + '.txt')
+		if not filename:
 			return
-		f = open(fss.as_pathname(), 'wb')
+		f = open(filename, 'wb')
 		f.write(self.get())
 		f.close()
-		fss.SetCreatorType(W._signature, 'TEXT')
+		MacOS.SetCreatorAndType(filename, W._signature, 'TEXT')
 	
+	def domenu_cut(self, *args):
+		self.domenu_copy(*args)
+	
+	def domenu_clear(self, *args):
+		self.set('')
+
 
 class PyOutput:
 	
@@ -275,13 +286,15 @@ class PyOutput:
 		self.w.bind("<activate>", self.activate)
 	
 	def write(self, text):
-		oldyield = MacOS.EnableAppswitch(-1)
+		if hasattr(MacOS, 'EnableAppswitch'):
+			oldyield = MacOS.EnableAppswitch(-1)
 		try:
 			self._buf = self._buf + text
 			if '\n' in self._buf:
 				self.flush()
 		finally:
-			MacOS.EnableAppswitch(oldyield)
+			if hasattr(MacOS, 'EnableAppswitch'):
+				MacOS.EnableAppswitch(oldyield)
 	
 	def flush(self):
 		self.show()
@@ -294,6 +307,8 @@ class PyOutput:
 		self._buf = ""
 		self.w.outputtext.updatescrollbars()
 		self.w.outputtext.ted.WEFeatureFlag(WASTEconst.weFReadOnly, 1)
+		if self.w.wid.GetWindowPort().QDIsPortBuffered():
+			self.w.wid.GetWindowPort().QDFlushPortBuffer(None)
 	
 	def show(self):
 		if self.closed:
@@ -354,7 +369,9 @@ class SimpleStdin:
 		rv = EasyDialogs.AskString(prompt)
 		if rv is None:
 			return ""
-		return rv + '\n'
+		rv = rv + "\n"  # readline should include line terminator
+		sys.stdout.write(rv)  # echo user's reply
+		return rv
 
 
 def installconsole(defaultshow = 1):

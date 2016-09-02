@@ -7,3 +7,6 @@ Python Standard Documentation
 * Python API: (python-api).		Python/C API Reference Manual
 * Python Extending: (python-ext).	Extending & Embedding Python
 * Python Tutorial: (python-tut).	Python Tutorial
+* Documenting Python: (python-doc).	Documenting Python
+* Installing Modules: (python-inst).	Installing Python Modules
+* Distributing Modules: (python-dist).	Distributing Python Modules
