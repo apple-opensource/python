@@ -17,4 +17,10 @@
 	t = htonl(t);
 #endif /* !WORDS_BIGENDIAN */
 .
+/Carbon\.Qt/i
+#ifndef __LP64__
+.
+/^$/i
+#endif /* !__LP64__ */
+.
 w
