@@ -35,13 +35,17 @@ configure:: $(ConfigStamp2)
 $(ConfigStamp2): $(ConfigStamp)
 	$(_v) ed - ${OBJROOT}/Makefile < $(FIX)/Makefile.ed
 	$(_v) ed - ${OBJROOT}/Mac/OSX/Makefile < $(FIX)/OSXMakefile.ed
-	$(_v) ed - ${OBJROOT}/pyconfig.h < $(FIX)/endian.ed
+	$(_v) sed -e 's/@PREPENDFILE@/$(PREPENDFILE)/' \
+	    -e 's/@APPENDFILE@/$(APPENDFILE)/' \
+	    -e 's/@VERS@/$(VERS)/' < $(FIX)/pyconfig.ed | \
+	    ed - ${OBJROOT}/pyconfig.h
+	$(_v) patch ${OBJROOT}/Lib/plat-mac/applesingle.py \
+		$(FIX)/applesingle.py.patch
 	$(_v) $(TOUCH) $(ConfigStamp2)
 
 ##---------------------------------------------------------------------
 # Fixup a lot of problems after the install
 ##---------------------------------------------------------------------
-VERS = 2.3
 APPS = /Applications
 DEVAPPS = /Developer/Applications/Utilities
 USRBIN = /usr/bin
@@ -75,9 +79,10 @@ UTF162BYTE = $(RUNPYTHON) $(FIX)/utf162byte.py
 fixup-after-install: delete-stuff \
 		     move-things-around \
 		     strip-installed-files \
-		     make-utf16 \
 		     fix-empty-file \
 		     fix-BAInfo \
+		     fix-PAInfo \
+		     fix-PLInfo \
 		     fix-CFBundleIdentifier \
 		     fix-CFBundleShortVersionString \
 		     fix-paths \
@@ -102,21 +107,17 @@ strip-installed-files:
 	strip -x $(DSTROOT)$(LIBPYTHONVERS)/config/python.o
 	strip -x $(DSTROOT)$(LIBPYTHONVERS)/lib-dynload/*.so
 
-make-utf16:
-	@for i in $(DSTROOT)$(ENGLISHLPROJVERS) $(DSTROOT)$(PAENGLISHLPROJ); do \
-	    echo mv $$i/InfoPlist.strings $$i/temp-ip.strings; \
-	    mv $$i/InfoPlist.strings $$i/temp-ip.strings; \
-	    echo $(BYTE2UTF16) $$i/temp-ip.strings $$i/InfoPlist.strings; \
-	    $(BYTE2UTF16) $$i/temp-ip.strings $$i/InfoPlist.strings; \
-	    echo rm -f $$i/temp-ip.strings; \
-	    rm -f $$i/temp-ip.strings; \
-	done
-
 fix-empty-file:
 	echo '#' > $(DSTROOT)$(LIBPYTHONVERS)/bsddb/test/__init__.py
 
 fix-BAInfo:
 	ed - $(DSTROOT)$(BACONTENTS)/Info.plist < $(FIX)/bainfo.ed
+
+fix-PAInfo:
+	ed - $(DSTROOT)$(PACONTENTS)/Info.plist < $(FIX)/painfo.ed
+
+fix-PLInfo:
+	ed - $(DSTROOT)$(PLCONTENTS)/Info.plist < $(FIX)/plinfo.ed
 
 fix-CFBundleIdentifier:
 	ed - $(DSTROOT)$(RESOURCESVERS)/Info.plist < $(FIX)/pfinfo.ed

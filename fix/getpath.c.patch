@@ -1,0 +1,144 @@
+--- getpath.c.orig	Tue May 11 17:12:49 2004
++++ getpath.c	Wed May 12 01:03:06 2004
+@@ -352,6 +352,58 @@
+ }
+ 
+ 
++#if defined(Py_APPENDTOPATH) || defined(Py_APPENDTOPATH)
++#ifdef HAVE_FCNTL_H
++#include <fcntl.h>
++#endif /* HAVE_FCNTL_H */
++
++#define BUFINC	1024
++static char *
++_morePath(const char *file)
++{
++    int fd;
++    char *buf, *cp;
++    size_t n, max, size;
++
++    if ((fd = open(file, O_RDONLY, 0)) < 0)
++	return NULL;
++    if ((buf = (char *)PyMem_Malloc(max = BUFINC)) == NULL) {
++	close(fd);
++	return NULL;
++    }
++    size = 0;
++    while ((n = read(fd, buf + size, BUFINC - 1)) > 0) {
++	size += n;
++	if ((n = size + BUFINC) < max) {
++	    if ((buf = (char *)PyMem_Realloc(buf, n)) == NULL) {
++		close(fd);
++		return NULL;
++	    }
++	    max = n;
++	}
++    }
++    close(fd);
++    if (n < 0 || size == 0) {
++	PyMem_Free(buf);
++	return NULL;
++    }
++    /* kill trailing newline */
++    cp = buf + size;
++    *cp-- = 0;
++    if (cp >= buf && *cp == '\n')
++	*cp = 0;
++    cp = buf;
++    while ((cp = strchr(cp, '\n')) != NULL)
++	*cp = ':';
++    if (strlen(buf) == 0) {
++	PyMem_Free(buf);
++	return NULL;
++    }
++    return buf;
++}
++#endif /* defined(Py_APPENDTOPATH) || defined(Py_APPENDTOPATH) */
++
++
+ static void
+ calculate_path(void)
+ {
+@@ -361,6 +413,12 @@
+     static char separator[2] = {SEP, '\0'};
+     char *pythonpath = PYTHONPATH;
+     char *rtpypath = Py_GETENV("PYTHONPATH");
++#ifdef Py_PREPENDTOPATH
++    char *prependpath = _morePath(Py_PREPENDTOPATH);
++#endif /* Py_PREPENDTOPATH */
++#ifdef Py_APPENDTOPATH
++    char *appendpath = _morePath(Py_APPENDTOPATH);
++#endif /* Py_APPENDTOPATH */
+     char *home = Py_GetPythonHome();
+     char *path = getenv("PATH");
+     char *prog = Py_GetProgramName();
+@@ -517,6 +575,11 @@
+     if (rtpypath)
+         bufsz += strlen(rtpypath) + 1;
+ 
++#ifdef Py_PREPENDTOPATH
++    if (prependpath)
++	bufsz += strlen(prependpath) + 1;
++#endif /* Py_PREPENDTOPATH */
++
+     prefixsz = strlen(prefix) + 1;
+ 
+     while (1) {
+@@ -538,7 +601,12 @@
+     bufsz += strlen(zip_path) + 1;
+     bufsz += strlen(exec_prefix) + 1;
+ 
+-    /* This is the only malloc call in this file */
++#ifdef Py_APPENDTOPATH
++    if (appendpath)
++	bufsz += strlen(appendpath) + 1;
++#endif /* Py_APPENDTOPATH */
++
++    /* This *may not be* the only malloc call in this file */
+     buf = PyMem_Malloc(bufsz);
+ 
+     if (buf == NULL) {
+@@ -556,6 +624,13 @@
+         else
+             buf[0] = '\0';
+ 
++#ifdef Py_PREPENDTOPATH
++	if (prependpath) {
++	    strcat(buf, prependpath);
++	    strcat(buf, delimiter);
++	}
++#endif /* Py_PREPENDTOPATH */
++
+         /* Next is the default zip path */
+         strcat(buf, zip_path);
+         strcat(buf, delimiter);
+@@ -589,6 +664,13 @@
+         /* Finally, on goes the directory for dynamic-load modules */
+         strcat(buf, exec_prefix);
+ 
++#ifdef Py_APPENDTOPATH
++	if (appendpath) {
++	    strcat(buf, delimiter);
++	    strcat(buf, appendpath);
++	}
++#endif /* Py_APPENDTOPATH */
++
+         /* And publish the results */
+         module_search_path = buf;
+     }
+@@ -612,6 +694,15 @@
+     }
+     else
+         strncpy(exec_prefix, EXEC_PREFIX, MAXPATHLEN);
++
++#ifdef Py_PREPENDTOPATH
++	if (prependpath)
++	    PyMem_Free(prependpath);
++#endif /* Py_PREPENDTOPATH */
++#ifdef Py_APPENDTOPATH
++	if (appendpath)
++	    PyMem_Free(appendpath);
++#endif /* Py_APPENDTOPATH */
+ }
+ 
+ 
