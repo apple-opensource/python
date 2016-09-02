@@ -1,6 +1,0 @@
-/CFBundleExecutable/+1s/python/Python/
-/^<\/dict>/i
-	<key>NSAppleScriptEnabled</key>
-	<true/>
-.
-w

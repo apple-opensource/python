@@ -1,3 +1,2 @@
-g,/[^ 	]*/System/Library/Framework,s,,/System/Library/Framework,g
 g/-arch [^ ]* */s///g
 w

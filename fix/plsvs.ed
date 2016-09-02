@@ -1,2 +1,2 @@
-/^CFBundleShortVersionString/s/".*"/"0.1"/
+/^CFBundleShortVersionString/s/".*"/"2.3"/
 w
